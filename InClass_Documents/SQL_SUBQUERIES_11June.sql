@@ -19,7 +19,7 @@ But you can use BETWEEN within the subquery. */
 /*SUBQUERY IN SELECT CLAUSE */
 /* sonucu her satýrda tekrar eder.*/
 
-SELECT order_id, list_price, (SELECT AVG(list_price)  -- sipariþ verilern ürünlerin ortalama fiyatý
+SELECT order_id, list_price, (SELECT AVG(list_price)  -- sipariþ verilen ürünlerin ortalama fiyatý
 								FROM  sale.order_item) as avg_price
 FROM  sale.order_item
 
