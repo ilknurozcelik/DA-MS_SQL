@@ -147,7 +147,7 @@ from sale.order_item
 select count(distinct product_id) over() Uniqueproduct
 from sale.order_item  -- bu þekilde distinct burada çalýþmaz. Hata verir.
 
---window function ile sonuca ulaþmak için ek olarak group by yapmak gerekir. Ama group by yapmadan daha kolay bie þekilde sonuca ulaþabidiðim içi burada group by yapmaya gerke yok.
+--window function ile sonuca ulaþmak için ek olarak group by yapmak gerekir. Ama group by yapmadan daha kolay bir þekilde sonuca ulaþabidiðim içi burada group by yapmaya gerek yok.
 
 
 /* Write a query that returns how many different products are in each order?
@@ -171,5 +171,6 @@ from sale.order_item
 /* How many different product are in each brand in each category?
 Herbir kategorideki herbir markada kaç farklý ürünün bulunduðunu bulunuz? */
 
-select distinct category_id, brand_id, count(*) over(PARTITION BY category_id, brand_id ) num_of_product
+select distinct category_id, brand_id,
+	count(*) over(PARTITION BY category_id, brand_id ) num_of_product
 from product.product
