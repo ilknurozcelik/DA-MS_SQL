@@ -572,3 +572,58 @@ FROM (
 WHERE C.ORDER_TOTAL_GREATER=0)) as E
 WHERE D.customer_id=E.customer_id
 ORDER BY D.last_name, D.first_name
+
+/* öznur hoca'nýn çözümü: */
+
+SELECT first_name, last_name 
+FROM sale.customer SC
+WHERE city='Charleston' and EXISTS (
+			SELECT O.customer_id
+			FROM sale.order_item I, sale.orders O WHERE O.order_id=I.order_id
+			AND SC.customer_id = O.customer_id
+			GROUP BY O.order_id, O.customer_id
+			HAVING SUM(quantity*list_price*(1-discount)) > 500
+			EXCEPT
+			SELECT O.customer_id
+			FROM sale.order_item I, sale.orders O WHERE O.order_id=I.order_id
+			AND SC.customer_id = O.customer_id
+			GROUP BY O.order_id, O.customer_id
+			HAVING SUM(quantity*list_price*(1-discount)) <= 500
+			)
+ORDER BY last_name, first_name
+
+/* Oven Hoca'nýn çözümü */
+
+SELECT A.customer_id, MIN (b.ORDER_TOTAL)
+FROM sale.orders AS A,
+		(
+		SELECT SOI.order_id, SUM(SOI.list_price*SOI.quantity*(1-SOI.discount)) AS ORDER_TOTAL
+		FROM sale.order_item SOI, sale.orders SO
+		WHERE SO.order_id=SOI.order_id
+			AND customer_id IN (
+						SELECT customer_id
+						FROM sale.customer
+						WHERE city='Charleston')
+	GROUP BY SOI.order_id) AS B
+	WHERE A.order_id = B.order_id
+	GROUP BY A.customer_id
+	HAVING MIN (b.ORDER_TOTAL) >= 500
+
+/* oven hoca nýn çözümü-2 */
+
+WITH T1 AS
+		(
+		SELECT A.customer_id,A.first_name,A.last_name
+		FROM	sale.customer A, sale.orders B
+		WHERE	city = 'Charleston'
+		AND		A.customer_id = B.customer_id
+		)
+SELECT DISTINCT T1.first_name, T1.last_name
+FROM	T1
+WHERE	NOT EXISTS (
+					SELECT	O.customer_id, O.order_id, SUM(quantity*list_price*(1-discount))
+					FROM	sale.order_item I, sale.orders O
+					WHERE	O.order_id=I.order_id
+					AND		T1.customer_id = O.customer_id
+					GROUP BY O.customer_id, O.order_id
+					HAVING SUM(quantity*list_price*(1-discount)) < 500 )

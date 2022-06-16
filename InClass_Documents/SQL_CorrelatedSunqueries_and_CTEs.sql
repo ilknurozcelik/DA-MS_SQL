@@ -90,77 +90,96 @@ WHERE PC.store_id = SS.store_id AND SS.store_name = 'Davi techno Retail' AND
 				PC.product_id = A.product_id AND A.quantity=0);
 
 
-/* -- Brukes Outlet storedan alýnýp The BFLO Store maðazasýndan hiç alýnmayan ürün var mý?
--- Varsa bu ürünler nelerdir?
--- Ürünlerin satýþ bilgileri istenmiyor, sadece ürün listesi isteniyor. */
-
--- Brukes Outlet store' dan alýnan ürünler
-
-SELECT DISTINCT P. product_id, ST.store_id, O.order_status
-FROM product.product AS P, product.stock AS S, sale.store ST, sale.orders AS O
+-- except ile çözüm
+SELECT A. product_id
+FROM product.product AS A, product.stock AS B, sale.store C
+WHERE C.store_id = B.store_id AND
+	A.product_id= B.product_id AND
+	C.store_name = 'Davi techno Retail'
+except
+SELECT P. product_id
+FROM product.product AS P, product.stock AS S, sale.store ST
 WHERE ST.store_id = S.store_id AND
 	S.product_id= P.product_id AND
-	O.store_id = ST.store_id AND
+	ST.store_name = 'Burkes Outlet' AND
+	S.quantity > 0 ; 
+
+-- intersect ile çözüm :
+SELECT PC.product_id
+FROM product.stock PC, sale.store SS
+WHERE PC.store_id = SS.store_id AND SS.store_name = 'Davi techno Retail' 
+INTERSECT
+SELECT DISTINCT A.product_id
+FROM product.stock A, sale.store B
+WHERE A.store_id = B.store_id AND B.store_name = 'Burkes Outlet' AND
+		A.quantity=0;
+
+
+/* Burkes Outlet storedan alýnýp The BFLO Store maðazasýndan hiç alýnmayan ürün var mý?
+ Varsa bu ürünler nelerdir?
+ Ürünlerin satýþ bilgileri istenmiyor, sadece ürün listesi isteniyor. */
+
+-- Burkes Outlet store' dan alýnan ürünler
+
+SELECT DISTINCT PP.product_id, PP.product_name
+FROM product.product AS PP, sale.store AS ST, sale.orders AS SO, sale.order_item AS SOI
+WHERE ST.store_id = SO.store_id AND
+	SO.order_id= SOI.order_id AND
+	SOI.product_id = PP.product_id AND
 	ST.store_name = 'Burkes Outlet'
 
 -- The BFLO Store' dan alýnan ürünler
-SELECT DISTINCT P. product_id, ST.store_id, O.order_status
-FROM product.product AS P, product.stock AS S, sale.store ST, sale.orders AS O
-WHERE ST.store_id = S.store_id AND
-	S.product_id= P.product_id AND
-	O.store_id = ST.store_id AND
+SELECT DISTINCT PP.product_id, PP.product_name
+FROM product.product AS PP, sale.store AS ST, sale.orders AS SO, sale.order_item AS SOI
+WHERE ST.store_id = SO.store_id AND
+	SO.order_id= SOI.order_id AND
+	SOI.product_id = PP.product_id AND
 	ST.store_name = 'The BFLO Store'
 
+-- EXCEPT ÝLE ÇÖZÜM
 
+SELECT DISTINCT PP.product_id, PP.product_name, PP.list_price, PP.model_year
+FROM product.product AS PP, sale.store AS ST, sale.orders AS SO, sale.order_item AS SOI
+WHERE ST.store_id = SO.store_id AND
+	SO.order_id= SOI.order_id AND
+	SOI.product_id = PP.product_id AND
+	ST.store_name = 'Burkes Outlet'
+EXCEPT
+SELECT DISTINCT PP.product_id, PP.product_name , PP.list_price, PP.model_year
+FROM product.product AS PP, sale.store AS ST, sale.orders AS SO, sale.order_item AS SOI
+WHERE ST.store_id = SO.store_id AND
+	SO.order_id= SOI.order_id AND
+	SOI.product_id = PP.product_id AND
+	ST.store_name = 'The BFLO Store';  -- 8 ROWS
 
-SELECT DISTINCT A. product_id, A.product_name
-FROM product.product AS A, product.stock AS B, sale.store C, sale.orders AS D
-WHERE C.store_id = B.store_id AND
-	B.product_id= A.product_id AND
-	D.store_id = C.store_id AND
-	C.store_name = 'Burkes Outlet' AND
+-- NOT EXISTS ÝLE ÇÖZÜM
+
+SELECT DISTINCT A.product_id, A.product_name, A.list_price, A.model_year
+FROM product.product AS A, sale.store AS B, sale.orders AS C, sale.order_item AS D
+WHERE B.store_id = C.store_id AND
+	C.order_id= D.order_id AND
+	D.product_id = A.product_id AND
+	B.store_name = 'Burkes Outlet' AND
 	NOT EXISTS (
-				SELECT DISTINCT P. product_id, P.product_name
-				FROM product.product AS P, product.stock AS S, sale.store ST, sale.orders AS O
-				WHERE ST.store_id = S.store_id AND
-					S.product_id= P.product_id AND
-					O.store_id = ST.store_id AND
+				SELECT DISTINCT PP.product_id, PP.product_name  -- 1 de yazýlabilir. Kolon numarasý olarak.
+				FROM product.product AS PP, sale.store AS ST, sale.orders AS SO, sale.order_item AS SOI
+				WHERE ST.store_id = SO.store_id AND
+					SO.order_id= SOI.order_id AND
+					SOI.product_id = PP.product_id AND
 					ST.store_name = 'The BFLO Store' AND
-					A.product_id = P.product_id);  -- 8 SATIR DÖNÜYOR. HATA VAR?
+					A.product_id = PP.product_id);  -- 8 ROWS
 
---Tuðba Hoca'nýn çözümü
-
-SELECT DISTINCT P.product_name
-FROM product.product P,
-    sale.order_item I,
-    sale.orders O,
-    sale.store S
-WHERE store_name = ‘Burkes Outlet’
-    AND P.product_id = I.product_id
-    AND I.order_id = O.order_id
-    AND O.store_id = S.store_id
-    AND NOT EXISTS (SELECT PP.product_name
-                    FROM product.product PP,
-                        sale.order_item SI,
-                        sale.orders SO,
-                        sale.store SS
-                    WHERE store_name = ‘The BFLO Store’
-                        AND PP.product_id = SI.product_id
-                        AND SI.order_id = SO.order_id
-                        AND SO.store_id = SS.store_id
-                        AND P.product_name = PP.product_name)
-
--- hOCANIN ÇÖZÜMÜ-1
+-- HOCANIN ÇÖZÜMÜ-1
 
 SELECT P.product_name, p.list_price, p.model_year
-FROM product.product P
+FROM product.product P  -- TOPLAM ÜRÜN LÝSTESÝ
 WHERE NOT EXISTS (
 		SELECt	I.product_id
 		FROM	sale.order_item I,
 				sale.orders O,
 				sale.store S
 		WHERE	I.order_id = O.order_id AND S.store_id = O.store_id
-				AND S.store_name = 'The BFLO Store'
+				AND S.store_name = 'The BFLO Store'  -- BFLO STORE'DAN ALINAN ÜRÜNLER LÝSTESÝ
 				and P.product_id = I.product_id)
 	AND
 	EXISTS (
@@ -169,26 +188,10 @@ WHERE NOT EXISTS (
 				sale.orders O,
 				sale.store S
 		WHERE	I.order_id = O.order_id AND S.store_id = O.store_id
-				AND S.store_name = 'Burkes Outlet'
+				AND S.store_name = 'Burkes Outlet'  -- BURKES OUTLET'DEN ALINMIÞ ÜRÜNLER LÝSTESÝ
 				and P.product_id = I.product_id)
 ;
 
---HOCANIN ÇÖZÜMÜ-2:
-
-SELECt	distinct I.product_id
-		FROM	sale.order_item I,
-				sale.orders O,
-				sale.store S
-		WHERE	I.order_id = O.order_id AND S.store_id = O.store_id
-				AND S.store_name = 'Burkes Outlet'
-except
-		SELECt	distinct I.product_id
-		FROM	sale.order_item I,
-				sale.orders O,
-				sale.store S
-		WHERE	I.order_id = O.order_id AND S.store_id = O.store_id
-				AND S.store_name = 'The BFLO Store'
-;
 
 
 /* CTEs: COMMON TABLE EXPRESSION */
@@ -202,26 +205,31 @@ except
 /* Jerald Berray isimli müþterinin son sipariþinden önce sipariþ vermiþ 
 ve Austin þehrinde ikamet eden müþterileri listeleyin. */
 
+-- Önce Jerald Berray isimli müþterinin son sipariþ tarihini bulalým.
 SELECT MAX(B.order_date) JeraldLastOrderDate
 FROM sale.customer AS A, sale.orders AS B
 WHERE A.customer_id=B.customer_id AND
 	A.first_name = 'Jerald' and a.last_name = 'Berray'
 
+
+-- Austin þehrinde ikamet eden müþterilerin bilgilerini bulalým.
 select *
 from sale.customer AS A, sale.orders AS B
-where A.city = 'Austin' AND A.customer_id=B.customer_id
+where A.city = 'Austin'
+	AND A.customer_id=B.customer_id
 
 
 -- benim kod:
 with tbl AS(SELECT MAX(B.order_date) JeraldLastOrderDate
 FROM sale.customer AS A, sale.orders AS B
 WHERE A.customer_id=B.customer_id AND
-	A.first_name = 'Jerald' and a.last_name = 'Berray')
-
-select DISTINCT A.first_name, A.last_name
-from sale.customer AS A, sale.orders AS B, tbl AS C
-where A.city = 'Austin' AND A.customer_id=B.customer_id
-	AND B.order_date < C.JeraldLastOrderDate;
+	A.first_name = 'Jerald' and a.last_name = 'Berray'
+	)
+	select DISTINCT A.first_name, A.last_name
+	from sale.customer AS A, sale.orders AS B, tbl AS C
+	where A.city = 'Austin'
+		AND A.customer_id=B.customer_id
+		AND B.order_date < C.JeraldLastOrderDate;
 
 -- HOCANIN ÇÖZÜMÜ
 
@@ -250,7 +258,7 @@ FROM product.product AS PP, sale.orders AS SO, sale.order_item AS SOI, product.b
 WHERE PP.product_id = SOI.product_id AND
 	SOI.order_id = SO.order_id AND
 	PP.brand_id= PB.brand_id
-GROUP BY PB.brand_id, PB.brand_name
+GROUP BY PB.brand_id, PB.brand_name;
 
 --MARKALARIN TOPLAM ÜRÜN SAYILARI
 SELECT PB.brand_id, PB.brand_name, COUNT(DISTINCT PP.product_id) COUNT_OF_PRODUCT
@@ -275,9 +283,9 @@ GROUP BY PB.brand_id, PB.brand_name
 )
 select	*
 from	tbl1 A, tbl2 B
-		
-where	A.brand_name = 'Sony' OR A.brand_name = 'Logitech'
-	AND A.brand_id = B.brand_id;
+where	A.brand_id = B.brand_id AND
+		A.brand_name IN ('Logitech', 'Sony'); -- VEYA (A.brand_name='Logitech' OR A.brand_name='Sony');
+		-- 2 ROWS
 	
 
 -- Hocanýn çözümü: tüm markalar için
@@ -338,7 +346,7 @@ with cte AS(
 
 SELECT * FROM CTE
 
-
+-- YUKARIDAKÝ ÝÞLEMÝ KODUMUZU DÜZENLEYEREK YAPMAYA ÇALIÞALIM.
 with cte AS(
 	SELECT 0 AS RAKAM
 	UNION ALL
@@ -360,7 +368,7 @@ with cte AS(
 
 SELECT * FROM cte
 
--- alternatif çözüm:
+-- alternatif çözüm: EOMONTH kullanarak
 
 with cte AS(
 	SELECT CAST('2020-01-01' AS DATE) AS DATE_
@@ -371,6 +379,8 @@ with cte AS(
 
 SELECT * FROM cte;
 
+
+-- TÜM TARÝH PART LARINI AYRI BÝR SÜTUNDA GÖSTEREREK
 with cte AS(
 	SELECT CAST('2020-01-01' AS DATE) AS DATE_
 	UNION ALL
